@@ -1,4 +1,9 @@
 # Location for the resources, it will be used in naming and tagging of resources
+variable "resource_group_name" {
+  description = "Name for the resource group"
+  type        = string
+  default     = null
+}
 variable "location" {
   description = "Location for the resources"
   type        = string
@@ -38,6 +43,7 @@ variable "common_tags" {
 variable "k8s_clusters" {
   description = "Map of k8s clusters to create"
   type        = map(object({
+    acr_id = optional(string)
     default_node_pool = object({
       node_count = number
       vm_size    = string
@@ -46,6 +52,26 @@ variable "k8s_clusters" {
     identity = optional(object({
       type = string
     }))
+  }))
+  default = {}
+}
+
+variable "deployments" {
+  description = "List of Kubernetes deployments"
+  type = map(object({
+    image   = string
+    replicas = number
+    port    = number
+    resources = object({
+      limits = object({
+        cpu    = string
+        memory = string
+      })
+      requests = object({
+        cpu    = string
+        memory = string
+      })
+    })
   }))
   default = {}
 }
