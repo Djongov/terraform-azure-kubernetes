@@ -7,6 +7,7 @@ locals {
     #"last_updated_at" = plantimestamp() # it is a cool idea but can be a lot of output so for now it's off
     },
     var.common_tags != null ? var.common_tags : {},
+    var.repo_name != null ? { "repo-name" = var.repo_name } : {}
   )
 
   location_abbreviations = {

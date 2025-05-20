@@ -1,6 +1,7 @@
 variable "subscription_id" {}
 variable "environment" {}
 variable "location" {}
+variable "k8s_clusters" { default = {} }
 
 # terraform {
 #   backend "azurerm" {
@@ -17,14 +18,22 @@ locals {
     common_tags = {
         common_tag = "common_tag_value"
     }
+    project_name = "sunwell-k8s"
+    repo_name    = "terraform-azure-kubernetes"
 }
 
 module "whatever-this-module-is" {
-  #source               = "git@github.com:Djongov/terraform-azure-template.git?ref=main"
+  #source               = "git@github.com:Djongov/terraform-azure-kubernetes.git?ref=main"
   source                = "../"
+  project_name          = local.project_name
   environment           = var.environment
   location              = var.location
   subscription_id       = var.subscription_id
   common_tags           = local.common_tags
-  #resource_group_name = var.resource_group_name
+  repo_name             = local.repo_name
+  #k8s_clusters          = local.k8s_clusters_by_env[var.environment]
 }
+
+# module "networking-module" {
+#   source                = "../terraform-azure-networking"
+# }
