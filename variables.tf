@@ -30,7 +30,7 @@ variable "project_name" {
 variable "repo_name" {
   description = "name of the repository"
   type        = string
-  default = null
+  default     = null
 }
 
 # Common tags that will be applied to all resources
@@ -39,39 +39,27 @@ variable "common_tags" {
   default = {}
 }
 
+variable "vnet_subnet_id" {
+  description = "Vnet subnet id for the resources"
+  type        = string
+  default     = null
+}
+
 # K8s clusters
-variable "k8s_clusters" {
-  description = "Map of k8s clusters to create"
-  type        = map(object({
-    acr_id = optional(string)
-    default_node_pool = object({
+variable "k8s_cluster" {
+  description = "Single k8s cluster config (empty means no cluster)"
+  type = object({
+    acr_id         = optional(string)
+    deploy_ingress = optional(bool)
+    public_ip      = optional(bool)
+    default_node_pool = optional(object({
       node_count = number
       vm_size    = string
-      vnet_subnet_id = string
-    })
+    }))
     identity = optional(object({
       type = string
     }))
-  }))
+  })
   default = {}
 }
 
-variable "deployments" {
-  description = "List of Kubernetes deployments"
-  type = map(object({
-    image   = string
-    replicas = number
-    port    = number
-    resources = object({
-      limits = object({
-        cpu    = string
-        memory = string
-      })
-      requests = object({
-        cpu    = string
-        memory = string
-      })
-    })
-  }))
-  default = {}
-}
