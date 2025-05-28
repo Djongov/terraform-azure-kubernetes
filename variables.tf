@@ -52,6 +52,15 @@ variable "k8s_cluster" {
     acr_id         = optional(string)
     deploy_ingress = optional(bool)
     public_ip      = optional(bool)
+    key_vault_access = optional(object({
+      key_vault_id = string
+      rbac_role    = optional(string)
+    }))
+    ssl_certificates = optional(list(object({
+      certificate_name = string
+      key_vault_id     = string
+      namespace        = string
+    })), [])
     default_node_pool = optional(object({
       node_count = number
       vm_size    = string

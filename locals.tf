@@ -1,8 +1,8 @@
 locals {
   # let's define common tags that we can use to apply to all resources
   common_tags = merge({
-    "managed-by"        = "terraform"
-    "environment"       = var.environment
+    "managed-by"  = "terraform"
+    "environment" = var.environment
     #"last-updated-by"  = data.azuread_user.current_user.user_principal_name
     #"last_updated_at" = plantimestamp() # it is a cool idea but can be a lot of output so for now it's off
     },
@@ -130,4 +130,9 @@ locals {
 
   # We can use this to get the location abbreviation from the location name, use it to name resources
   location_abbreviation = lookup(local.location_abbreviations, var.location, "")
+
+  cert_namespaces = {
+    for cert in var.k8s_cluster.ssl_certificates :
+    cert.certificate_name => cert.namespace
+  }
 }

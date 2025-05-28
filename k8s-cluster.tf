@@ -104,3 +104,44 @@ resource "azurerm_public_ip" "nginx_ingress" {
     local.common_tags
   )
 }
+
+resource "helm_release" "secrets_store_csi_driver" {
+  name       = "csi-secrets-store"
+  repository = "https://kubernetes-sigs.github.io/secrets-store-csi-driver/charts"
+  chart      = "secrets-store-csi-driver"
+  version    = "1.5.1" # choose latest stable
+
+  namespace = "kube-system"
+
+  # Optional: override values if needed
+  values = [
+    yamlencode({
+      syncSecret = {
+        enabled = true
+      }
+    })
+  ]
+
+  depends_on = [azurerm_kubernetes_cluster.this]
+}
+
+
+# resource "kubernetes_secret" "tls" {
+#   for_each = {
+#     for cert in var.k8s_cluster.ssl_certificates : cert.certificate_name => cert
+#     if cert.key_vault_id != null
+#   }
+
+#   metadata {
+#     name      = each.value.certificate_name
+#     namespace = each.value.namespace
+#   }
+
+#   type = "kubernetes.io/tls"
+
+#   data = {
+#     "tls.crt" = data.external.decoded_certs[each.key].result.crt
+#     "tls.key" = data.external.decoded_certs[each.key].result.key
+#   }
+# }
+
