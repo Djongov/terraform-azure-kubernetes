@@ -131,8 +131,8 @@ locals {
   # We can use this to get the location abbreviation from the location name, use it to name resources
   location_abbreviation = lookup(local.location_abbreviations, var.location, "")
 
-  cert_namespaces = {
-    for cert in var.k8s_cluster.ssl_certificates :
-    cert.certificate_name => cert.namespace
-  }
+  # cert_namespaces = {
+  #   for cert in var.k8s_cluster.ssl_certificates :
+  #   cert.certificate_name => cert.namespace
+  # }
 }

@@ -45,36 +45,41 @@ variable "vnet_subnet_id" {
   default     = null
 }
 
-variable "tenant_id" {
-  description = "Tenant id for the resources"
-  type        = string
-  default     = null
-}
-
 # K8s clusters
 variable "k8s_cluster" {
-  description = "Single k8s cluster config (empty means no cluster)"
+  description = "AKS configuration including app deployments"
   type = object({
-    acr_id         = optional(string)
-    deploy_ingress = optional(bool)
-    public_ip      = optional(bool)
-    key_vault_access = optional(object({
-      key_vault_id = string
-      rbac_role    = optional(string)
-    }))
-    # ssl_certificates = optional(list(object({
-    #   certificate_name = string
-    #   key_vault_id     = string
-    #   namespace        = string
-    # })), [])
-    default_node_pool = optional(object({
-      node_count = number
-      vm_size    = string
-    }))
-    # identity = optional(object({
-    #   type = string
-    # }))
+    network_plugin               = optional(string) # "azure, kubenet, or none"
+    network_policy               = optional(string) # "calico, azure, or none"
+    default_node_pool_node_count = optional(number) # default is 1
+    default_node_pool_vm_size    = optional(string) # default is "Standard_B4ms"
+    namespaces = optional(map(object({
+      apps = map(object({
+        repository = string
+        node = object({
+          node_count         = number
+          vm_size            = string
+          min_count          = number
+          max_count          = number
+          enable_autoscaling = bool
+        })
+        deployment = object({
+          container_port = number
+          env            = optional(map(string))
+          replicas       = optional(number)
+        })
+        service = object({
+          type = string
+          port = number
+        })
+        ingress = optional(object({
+          host = string
+          path = string
+        }))
+      }))
+    })))
   })
   default = {}
 }
+
 
