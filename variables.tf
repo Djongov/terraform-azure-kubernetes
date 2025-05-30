@@ -62,11 +62,11 @@ variable "k8s_cluster" {
       key_vault_id = string
       rbac_role    = optional(string)
     }))
-    ssl_certificates = optional(list(object({
-      certificate_name = string
-      key_vault_id     = string
-      namespace        = string
-    })), [])
+    # ssl_certificates = optional(list(object({
+    #   certificate_name = string
+    #   key_vault_id     = string
+    #   namespace        = string
+    # })), [])
     default_node_pool = optional(object({
       node_count = number
       vm_size    = string

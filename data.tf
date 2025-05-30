@@ -26,22 +26,22 @@ data "azurerm_key_vault" "default" {
   resource_group_name = split("/", var.k8s_cluster.key_vault_access.key_vault_id)[4]
 }
 
-data "azurerm_key_vault_certificate" "tls" {
-  for_each = {
-    for cert in var.k8s_cluster.ssl_certificates : cert.certificate_name => cert if cert.key_vault_id != null
-  }
+# data "azurerm_key_vault_certificate" "tls" {
+#   for_each = {
+#     for cert in var.k8s_cluster.ssl_certificates : cert.certificate_name => cert if cert.key_vault_id != null
+#   }
 
-  name         = each.value.certificate_name
-  key_vault_id = data.azurerm_key_vault.default[0].id
-}
+#   name         = each.value.certificate_name
+#   key_vault_id = data.azurerm_key_vault.default[0].id
+# }
 
-output "pfx_blob" {
-  value = {
-    for cert in data.azurerm_key_vault_certificate.tls : cert.key_vault_id => {
-      certificate_name = cert.name
-      pfx_blob         = cert.certificate_data_base64
-      key_vault_id     = cert.key_vault_id
-    }
-  }
-  description = "PFX blobs for the certificates stored in Key Vault"
-}
+# output "pfx_blob" {
+#   value = {
+#     for cert in data.azurerm_key_vault_certificate.tls : cert.key_vault_id => {
+#       certificate_name = cert.name
+#       pfx_blob         = cert.certificate_data_base64
+#       key_vault_id     = cert.key_vault_id
+#     }
+#   }
+#   description = "PFX blobs for the certificates stored in Key Vault"
+# }
