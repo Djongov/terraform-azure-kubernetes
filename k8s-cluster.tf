@@ -17,56 +17,41 @@ resource "azurerm_kubernetes_cluster" "this" {
       node_soak_duration_in_minutes = 0
     }
   }
-
-  dynamic "identity" {
-    for_each = var.k8s_cluster.identity != null && length(var.k8s_cluster.identity) > 0 ? [var.k8s_cluster.identity] : []
-    content {
-      type = identity.value.type
-    }
+  identity {
+    type = "SystemAssigned"
+    #type         = "UserAssigned"
+    #identity_ids = [azurerm_user_assigned_identity.aks_keyvault_identity.id]
   }
 }
 
-resource "azurerm_role_assignment" "acr_pull" {
-  count = var.k8s_cluster.acr_id != null ? 1 : 0
 
-  principal_id         = azurerm_kubernetes_cluster.this.kubelet_identity[0].object_id
-  role_definition_name = "AcrPull"
-  scope                = var.k8s_cluster.acr_id
+
+resource "kubernetes_manifest" "ingress_tls_spc" {
+  manifest = {
+    apiVersion = "secrets-store.csi.x-k8s.io/v1"
+    kind       = "SecretProviderClass"
+    metadata = {
+      name      = "ingress-tls"
+      namespace = "ingress-nginx"
+    }
+    spec = {
+      provider = "azure"
+      parameters = {
+        usePodIdentity       = "false"
+        useVMManagedIdentity = "true"
+        #userAssignedIdentityID = azurerm_user_assigned_identity.aks_keyvault_identity.client_id
+        keyvaultName = var.k8s_cluster.key_vault_access.key_vault_id != null ? split("/", var.k8s_cluster.key_vault_access.key_vault_id)[8] : ""
+        tenantId     = data.azurerm_client_config.current.tenant_id
+        objects      = <<EOT
+array:
+  - |
+    objectName: diablo-2-wildcard
+    objectType: secret
+EOT
+      }
+    }
+  }
 }
-
-# Now add Network Contributor to the cluster managed identity over the resource group as it seems that it is required for the AKS to manage the public IP
-resource "azurerm_role_assignment" "network_contributor" {
-  count = var.k8s_cluster.public_ip != null ? var.k8s_cluster.public_ip == true ? 1 : 0 : 0
-
-  principal_id         = azurerm_kubernetes_cluster.this.identity[0].principal_id
-  role_definition_name = "Network Contributor"
-  scope                = data.azurerm_resource_group.default.id
-}
-
-# resource "kubernetes_secret" "acr_pull" {
-#   for_each = {
-#     for k, v in var.k8s_clusters : k => v if v.acr_id != null
-#   }
-#   metadata {
-#     name      = "acr-secret"
-#     namespace = "default" # or your target namespace
-#   }
-
-#   type = "kubernetes.io/dockerconfigjson"
-
-#   data = {
-#     ".dockerconfigjson" = base64encode(jsonencode({
-#       auths = {
-#         "${data.azurerm_container_registry.acr[each.key].login_server}" = {
-#           username = data.azurerm_container_registry.acr[each.key].admin_username
-#           password = data.azurerm_container_registry.acr[each.key].admin_password
-#           email    = "unused@example.com"
-#           auth     = base64encode("${data.azurerm_container_registry.acr[each.key].admin_username}:${data.azurerm_container_registry.acr[each.key].admin_password}")
-#         }
-#       }
-#     }))
-#   }
-# }
 
 resource "helm_release" "nginx_ingress" {
   count = var.k8s_cluster.deploy_ingress ? 1 : 0
@@ -82,7 +67,7 @@ resource "helm_release" "nginx_ingress" {
   values = [
     yamlencode({
       controller = {
-        replicaCount = 2
+        replicaCount = 1
         service = {
           type = "LoadBalancer"
         }
@@ -90,6 +75,51 @@ resource "helm_release" "nginx_ingress" {
     })
   ]
 }
+
+# resource "helm_release" "nginx_ingress" {
+#   count = var.k8s_cluster.deploy_ingress ? 1 : 0
+
+#   name       = "nginx-ingress"
+#   namespace  = "ingress-nginx"
+#   repository = "https://kubernetes.github.io/ingress-nginx"
+#   chart      = "ingress-nginx"
+#   version    = "4.10.0"
+
+#   create_namespace = true
+
+#   values = [
+#     yamlencode({
+#       controller = {
+#         replicaCount = 2
+#         service = {
+#           type = "LoadBalancer"
+#         }
+
+#         extraVolumes = [
+#           {
+#             name = "secrets-store-inline"
+#             csi = {
+#               driver   = "secrets-store.csi.k8s.io"
+#               readOnly = true
+#               volumeAttributes = {
+#                 secretProviderClass = "ingress-tls"
+#               }
+#             }
+#           }
+#         ]
+
+#         extraVolumeMounts = [
+#           {
+#             name      = "secrets-store-inline"
+#             mountPath = "/mnt/secrets-store"
+#             readOnly  = true
+#           }
+#         ]
+#       }
+#     })
+#   ]
+# }
+
 
 resource "azurerm_public_ip" "nginx_ingress" {
   count = var.k8s_cluster.public_ip != null ? var.k8s_cluster.public_ip == true ? 1 : 0 : 0
@@ -123,6 +153,28 @@ resource "helm_release" "secrets_store_csi_driver" {
   ]
 
   depends_on = [azurerm_kubernetes_cluster.this]
+}
+
+
+# https://github.com/Azure/secrets-store-csi-driver-provider-azure/releases
+resource "helm_release" "azure_secrets_provider" {
+  name       = "csi-secrets-store-provider-azure"
+  namespace  = "kube-system"
+  repository = "https://azure.github.io/secrets-store-csi-driver-provider-azure/charts"
+  chart      = "csi-secrets-store-provider-azure"
+  version    = "1.7.0"
+
+  set {
+    name  = "linux.enabled"
+    value = true
+  }
+
+  set {
+    name  = "secrets-store-csi-driver.install"
+    value = false
+  }
+
+  depends_on = [helm_release.secrets_store_csi_driver]
 }
 
 

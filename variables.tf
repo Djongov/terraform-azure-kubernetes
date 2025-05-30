@@ -45,6 +45,12 @@ variable "vnet_subnet_id" {
   default     = null
 }
 
+variable "tenant_id" {
+  description = "Tenant id for the resources"
+  type        = string
+  default     = null
+}
+
 # K8s clusters
 variable "k8s_cluster" {
   description = "Single k8s cluster config (empty means no cluster)"
@@ -65,9 +71,9 @@ variable "k8s_cluster" {
       node_count = number
       vm_size    = string
     }))
-    identity = optional(object({
-      type = string
-    }))
+    # identity = optional(object({
+    #   type = string
+    # }))
   })
   default = {}
 }
