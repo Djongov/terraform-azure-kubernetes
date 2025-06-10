@@ -131,8 +131,64 @@ locals {
   # We can use this to get the location abbreviation from the location name, use it to name resources
   location_abbreviation = lookup(local.location_abbreviations, var.location, "")
 
-  # cert_namespaces = {
-  #   for cert in var.k8s_cluster.ssl_certificates :
-  #   cert.certificate_name => cert.namespace
-  # }
+  apps_flat = flatten([
+    for ns_name, ns_obj in var.k8s_cluster.namespaces != {} ? var.k8s_cluster.namespaces : {} : [
+      for app_name, app in ns_obj.apps : {
+        namespace  = ns_name
+        app_name   = app_name
+        repository = app.repository
+        node       = app.node
+        deployment = app.deployment
+        service    = app.service
+        ingress    = lookup(app, "ingress", null)
+        tls        = try(app.tls, null) # add this to have TLS info
+      }
+    ]
+  ])
+
+  apps_with_tls = {
+    for ns_name, ns in var.k8s_cluster.namespaces :
+    ns_name => {
+      for app_name, app in ns.apps :
+      app_name => try(app.tls, null)
+      if try(app.tls, null) != null && try(app.tls.certificate_name, null) != null
+    }
+  }
+
+  flat_apps_tls = merge([
+    for ns_name, apps in local.apps_with_tls : {
+      for app_name, tls in apps :
+      "${ns_name}-${app_name}" => {
+        namespace        = ns_name
+        app_name         = app_name
+        certificate_name = tls.certificate_name
+        secret_name      = lookup(tls, "secret_name", null)
+      }
+    }
+  ]...)
+
+  apps_with_ingress = {
+    for ns_name, ns in var.k8s_cluster.namespaces :
+    ns_name => {
+      for app_name, app in ns.apps :
+      app_name => app if contains(keys(app), "ingress") && app.ingress.host != ""
+    }
+  }
+
+  flat_apps_ingress = merge(
+    [
+      for ns_name, apps in local.apps_with_ingress : {
+        for app_name, app in apps :
+        "${ns_name}-${app_name}" => {
+          namespace    = ns_name
+          app_name     = app_name
+          host         = app.ingress.host
+          path         = app.ingress.path
+          service_name = app_name
+          service_port = app.service.port
+          tls_secret   = try(app.tls.secret_name, null)
+        }
+      }
+    ]...
+  )
 }

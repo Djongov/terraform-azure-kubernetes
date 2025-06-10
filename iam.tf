@@ -1,3 +1,28 @@
+# resource "azurerm_role_assignment" "aks_acr_pull" {
+#   count                = var.acr_id != null ? 1 : 0
+#   scope                = var.acr_id
+#   role_definition_name = "AcrPull"
+#   principal_id         = azurerm_kubernetes_cluster.this[0].identity[0].principal_id
+# }
+
+resource "azurerm_role_assignment" "aks_acr_pull" {
+  count                = var.acr_id != null ? 1 : 0
+  scope                = var.acr_id
+  role_definition_name = "AcrPull"
+  principal_id         = azurerm_kubernetes_cluster.this[0].kubelet_identity[0].object_id
+
+  depends_on = [azurerm_kubernetes_cluster.this]
+}
+
+# Network Contributor for the AKS managed identity
+resource "azurerm_role_assignment" "network_contributor" {
+  principal_id         = azurerm_kubernetes_cluster.this[0].identity[0].principal_id
+  role_definition_name = "Network Contributor"
+  scope                = azurerm_virtual_network.this[0].id
+
+  depends_on = [azurerm_kubernetes_cluster.this]
+}
+
 # resource "azurerm_user_assigned_identity" "aks_keyvault_identity" {
 #   name                = "aks-keyvault-uami"
 #   resource_group_name = var.resource_group_name
@@ -12,17 +37,21 @@
 #   scope                = var.k8s_cluster.acr_id
 # }
 
-# resource "azurerm_role_assignment" "kv_secret_user" {
-#   scope                = var.k8s_cluster.ssl_certificates[0].key_vault_id
-#   role_definition_name = "Key Vault Secrets User"
-#   principal_id         = azurerm_user_assigned_identity.aks_keyvault_identity.principal_id
-# }
+resource "azurerm_role_assignment" "kv_secret_user" {
+  scope                = var.k8s_cluster.key_vault_id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azurerm_kubernetes_cluster.this[0].key_vault_secrets_provider[0].secret_identity[0].object_id
 
-# resource "azurerm_role_assignment" "kv_certificate_user" {
-#   scope                = var.k8s_cluster.ssl_certificates[0].key_vault_id
-#   role_definition_name = "Key Vault Certificate User"
-#   principal_id         = azurerm_user_assigned_identity.aks_keyvault_identity.principal_id
-# }
+  depends_on = [azurerm_kubernetes_cluster.this]
+}
+
+resource "azurerm_role_assignment" "kv_certificate_user" {
+  scope                = var.k8s_cluster.key_vault_id
+  role_definition_name = "Key Vault Certificate User"
+  principal_id         = azurerm_kubernetes_cluster.this[0].key_vault_secrets_provider[0].secret_identity[0].object_id
+
+  depends_on = [azurerm_kubernetes_cluster.this]
+}
 
 
 # # Now add Network Contributor to the cluster managed identity over the resource group as it seems that it is required for the AKS to manage the public IP

@@ -1,5 +1,12 @@
+data "azurerm_key_vault" "default" {
+  count = var.k8s_cluster.key_vault_id != null ? 1 : 0
+
+  name                = split("/", var.k8s_cluster.key_vault_id)[8]
+  resource_group_name = split("/", var.k8s_cluster.key_vault_id)[4]
+}
+
 # # Here you will place data resources that you want to use in your Terraform configuration.
-# data "azurerm_client_config" "current" {}
+data "azurerm_client_config" "current" {}
 
 # #  # Get current user
 # # data "azuread_user" "current_user" {

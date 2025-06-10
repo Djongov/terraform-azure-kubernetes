@@ -45,24 +45,37 @@ variable "vnet_subnet_id" {
   default     = null
 }
 
+variable "acr_id" {
+  description = "Azure Container Registry ID for the resources"
+  type        = string
+  default     = null
+}
+
 # K8s clusters
 variable "k8s_cluster" {
   description = "AKS configuration including app deployments"
   type = object({
-    network_plugin               = optional(string) # "azure, kubenet, or none"
-    network_policy               = optional(string) # "calico, azure, or none"
+    network_plugin               = string           # "azure, kubenet, or none"
+    network_policy               = string           # "calico, azure, or none"
     default_node_pool_node_count = optional(number) # default is 1
     default_node_pool_vm_size    = optional(string) # default is "Standard_B4ms"
+    key_vault_id                 = string
+    ingress                      = string # "nginx" or "agic" or "addon"
+    tags                         = optional(map(string))
     namespaces = optional(map(object({
       apps = map(object({
         repository = string
         node = object({
-          node_count         = number
-          vm_size            = string
-          min_count          = number
-          max_count          = number
-          enable_autoscaling = bool
+          node_count           = number
+          vm_size              = string
+          min_count            = optional(number)
+          max_count            = optional(number)
+          auto_scaling_enabled = optional(bool)
         })
+        tls = optional(object({
+          certificate_name = optional(string)
+          secret_name      = optional(string)
+        }))
         deployment = object({
           container_port = number
           env            = optional(map(string))
@@ -79,7 +92,4 @@ variable "k8s_cluster" {
       }))
     })))
   })
-  default = {}
 }
-
-

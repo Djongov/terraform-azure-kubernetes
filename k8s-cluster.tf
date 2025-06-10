@@ -7,10 +7,11 @@ resource "azurerm_kubernetes_cluster" "this" {
   dns_prefix          = "${var.project_name}-aks"
 
   default_node_pool {
-    name           = "system"
-    node_count     = var.k8s_cluster.default_node_pool_node_count != null ? var.k8s_cluster.default_node_pool_node_count : 1
-    vm_size        = var.k8s_cluster.default_node_pool_vm_size != null ? var.k8s_cluster.default_node_pool_vm_size : "Standard_B4ms"
-    vnet_subnet_id = var.vnet_subnet_id != null ? var.vnet_subnet_id : azurerm_subnet.this[0].id
+    name                        = "system"
+    node_count                  = var.k8s_cluster.default_node_pool_node_count != null ? var.k8s_cluster.default_node_pool_node_count : 1
+    vm_size                     = var.k8s_cluster.default_node_pool_vm_size != null ? var.k8s_cluster.default_node_pool_vm_size : "Standard_B4ms"
+    vnet_subnet_id              = var.vnet_subnet_id != null ? var.vnet_subnet_id : azurerm_subnet.this[0].id
+    temporary_name_for_rotation = "systemtemp"
 
     upgrade_settings {
       drain_timeout_in_minutes      = 0
@@ -19,10 +20,22 @@ resource "azurerm_kubernetes_cluster" "this" {
     }
   }
 
+  key_vault_secrets_provider {
+    secret_rotation_enabled = true
+  }
+
+  dynamic "web_app_routing" {
+    for_each = var.k8s_cluster.ingress == "nginx" ? [1] : []
+    content {
+      dns_zone_ids = []
+    }
+  }
+
   network_profile {
-    network_plugin      = var.k8s_cluster.network_plugin != null ? var.k8s_cluster.network_plugin : "azure" # "azure", "kubenet", or "none"
-    network_policy      = var.k8s_cluster.network_policy != null ? var.k8s_cluster.network_policy : "azure" # "calico" or "azure"
-    network_plugin_mode = var.k8s_cluster.network_plugin != null || var.k8s_cluster.network_plugin == "azure" ? "overlay" : null
+    network_plugin = var.k8s_cluster.network_plugin != null ? var.k8s_cluster.network_plugin : "azure" # "azure", "kubenet", or "none"
+    network_policy = var.k8s_cluster.network_policy != null ? var.k8s_cluster.network_policy : "azure" # calico, azure and cilium
+    # Because network_plugin_mode can only be "overlay" as value when network_plugin is "azure", we can set it to "overlay" by default IF the network_plugin is "azure" and network_policy is "azure"
+    network_plugin_mode = var.k8s_cluster.network_plugin == "azure" && var.k8s_cluster.network_policy == "azure" ? "overlay" : null
     load_balancer_sku   = "standard" # or "basic"
   }
   identity {
@@ -30,6 +43,40 @@ resource "azurerm_kubernetes_cluster" "this" {
     #type         = "UserAssigned"
     #identity_ids = [azurerm_user_assigned_identity.aks_keyvault_identity.id]
   }
+
+  tags = merge(
+    local.common_tags,
+    var.k8s_cluster.tags != null ? var.k8s_cluster.tags : {}
+  )
+}
+
+# resource "helm_release" "secrets_store_csi_driver" {
+#   name       = "csi-secrets-store"
+#   repository = "https://kubernetes-sigs.github.io/secrets-store-csi-driver/charts"
+#   chart      = "secrets-store-csi-driver"
+#   version    = "1.5.1" # choose latest stable
+
+#   namespace = "kube-system"
+
+#   # Optional: override values if needed
+#   values = [
+#     yamlencode({
+#       syncSecret = {
+#         enabled = true
+#       }
+#     })
+#   ]
+
+#   depends_on = [azurerm_kubernetes_cluster.this]
+# }
+
+resource "kubernetes_namespace" "apps" {
+  for_each = var.k8s_cluster.namespaces != null ? var.k8s_cluster.namespaces : {}
+
+  metadata {
+    name = each.key
+  }
+
 }
 
 
@@ -143,25 +190,6 @@ resource "azurerm_kubernetes_cluster" "this" {
 #   )
 # }
 
-# resource "helm_release" "secrets_store_csi_driver" {
-#   name       = "csi-secrets-store"
-#   repository = "https://kubernetes-sigs.github.io/secrets-store-csi-driver/charts"
-#   chart      = "secrets-store-csi-driver"
-#   version    = "1.5.1" # choose latest stable
-
-#   namespace = "kube-system"
-
-#   # Optional: override values if needed
-#   values = [
-#     yamlencode({
-#       syncSecret = {
-#         enabled = true
-#       }
-#     })
-#   ]
-
-#   depends_on = [azurerm_kubernetes_cluster.this]
-# }
 
 
 # # https://github.com/Azure/secrets-store-csi-driver-provider-azure/releases

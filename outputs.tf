@@ -3,6 +3,10 @@ output "kube_config" {
   #sensitive = true
 }
 
+output "debug_kube_config" {
+  value = azurerm_kubernetes_cluster.this[0].kube_config
+}
+
 output "name" {
   value = azurerm_kubernetes_cluster.this[0].name
 }
