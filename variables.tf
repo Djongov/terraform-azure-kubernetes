@@ -60,7 +60,9 @@ variable "k8s_cluster" {
     default_node_pool_node_count = optional(number) # default is 1
     default_node_pool_vm_size    = optional(string) # default is "Standard_B4ms"
     key_vault_id                 = string
-    ingress                      = string # "nginx" or "agic" or "addon"
+    ingress                      = string         # "nginx" or "agic" or "addon"
+    oidc_issuer_enabled          = optional(bool) # default is false
+    workload_identity_enabled    = optional(bool) # default is false
     tags                         = optional(map(string))
     namespaces = optional(map(object({
       apps = map(object({

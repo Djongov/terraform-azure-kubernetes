@@ -6,6 +6,9 @@ resource "azurerm_kubernetes_cluster" "this" {
   resource_group_name = var.resource_group_name
   dns_prefix          = "${var.project_name}-aks"
 
+  oidc_issuer_enabled       = var.k8s_cluster.oidc_issuer_enabled != null ? var.k8s_cluster.oidc_issuer_enabled : false
+  workload_identity_enabled = var.k8s_cluster.workload_identity_enabled != null ? var.k8s_cluster.workload_identity_enabled : false
+
   default_node_pool {
     name                        = "system"
     node_count                  = var.k8s_cluster.default_node_pool_node_count != null ? var.k8s_cluster.default_node_pool_node_count : 1

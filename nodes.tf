@@ -21,7 +21,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "this" {
   }
 
   # Taint the node pool so only pods with a matching toleration can run here.
-  node_taints = [
-    "app=${each.value.app_name}:NoSchedule"
-  ]
+  # node_taints = [
+  #   "app=${each.value.app_name}:NoSchedule"
+  # ]
 }
